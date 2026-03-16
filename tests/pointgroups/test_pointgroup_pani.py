@@ -1,8 +1,8 @@
 from ase.build import molecule
 from gpaw.new.ase_interface import GPAW
-from gpaw.utilities.pointgroup import PointGroup, SPGOperations
-from gpaw.utilities.pointgroup_proj import PaniProjectable
-from gpaw.utilities.pointgroup_projections import SymmetryEigenvalues
+from symmetry.pointgroup import PointGroup, SPGOperations
+from symmetry.projectables import PaniProjectable
+from symmetry.projections import SymmetryEigenvalues
 from pathlib import Path
 import numpy as np
 from numpy import pi, sin, cos
@@ -53,7 +53,7 @@ def build_cell(atoms, group):
     [1, 0, 2],  # Swap x and y
     [2, 1, 0],  # Swap x and z
 ])
-def test_h2o_pani(translation, rotation_axis, permute_axes):
+def test_h2o_pani(translation, rotation_axis, permute_axes, pointgroup_test_paths):
     """Test H2O using PAniProjectable against turbomole reference"""
     name = "H2O"
     symmetry = "c2v"
@@ -79,7 +79,7 @@ def test_h2o_pani(translation, rotation_axis, permute_axes):
     atoms.translate(translation)
     
     # Load turbomole reference
-    tmole_json = Path(name + "_tmole.json")
+    tmole_json = pointgroup_test_paths.tmole_json_path(name)
     if not tmole_json.exists():
         raise FileNotFoundError(
             f"Turbomole reference {tmole_json} not found. "

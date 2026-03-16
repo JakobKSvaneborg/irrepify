@@ -4,9 +4,9 @@ import pytest
 from ase.io import write, read
 from ase.build import molecule
 from pathlib import Path
-from gpaw.utilities.pointgroup import PointGroup, SPGOperations
-from gpaw.utilities.pointgroup_proj import Projectable
-from gpaw.utilities.pointgroup_projections import State, SymmetryEigenvalues
+from symmetry.pointgroup import PointGroup, SPGOperations
+from symmetry.projectables import Projectable
+from symmetry.projections import State, SymmetryEigenvalues
 from gpaw.new.ase_interface import GPAW
 from dataclasses import dataclass
 from numpy import pi, sin, cos
@@ -375,7 +375,7 @@ def build_cell(atoms, group):
     # assert np.allclose(dataset.transformation_matrix, np.eye(3))
 
 
-def test_Oh():
+def test_Oh(pointgroup_test_paths):
     states = parse_eigenvalues(Path("Oh/irreps.txt").read_text())
     tmole_group = Path("Oh/group.txt").read_text().split()[-1]
     states = SymmetryEigenvalues(tmole_group, states)
@@ -383,11 +383,13 @@ def test_Oh():
 
     atoms = read("Al13.xyz")
     build_cell(atoms, "Oh")
-    if not Path("Al13_wfs.gpw").exists():
+    gpw_path = pointgroup_test_paths.cached_path("test_molecules", "Al13_wfs.gpw")
+    gpaw_txt = pointgroup_test_paths.cached_path("test_molecules", "gpaw.txt")
+    if not gpw_path.exists():
         calc = GPAW(
             mode={"name": "pw", "ecut": 400, "force_complex_dtype": True},
             xc="PBE",
-            txt="gpaw.txt",
+            txt=str(gpaw_txt),
         )
 
         # We don't support arbitrary centers (in our own symmetry
@@ -399,9 +401,9 @@ def test_Oh():
         spg_ops = SPGOperations.from_atoms(atoms, layergroup=False)
         atoms.calc = calc
         atoms.get_potential_energy()
-        calc.write("Al13_wfs.gpw", mode="all")
+        calc.write(gpw_path, mode="all")
 
-    calc = GPAW("Al13_wfs.gpw")
+    calc = GPAW(gpw_path)
     gpaw_states = SymmetryEigenvalues.from_calc(calc, False, pani=True)
     assert gpaw_states.little_group == "Oh"
     print("GPAW")
@@ -412,15 +414,17 @@ def test_Oh():
 
 # TODO: Add C3 molecule test, even an artificial one
 @pytest.mark.parametrize("name,symmetry", systems.items())  # g2.names
-def test_molecule(name, symmetry):
+def test_molecule(name, symmetry, pointgroup_test_paths):
     if name == "C2Cl4":
         pytest.xfail("D2h axis labelling mismatch")
     atoms = molecule(name)
     build_cell(atoms, symmetry)
-    tmole_json = Path(name + "_tmole.json")
+    tmole_json = pointgroup_test_paths.tmole_json_path(name)
+    molecule_dir = pointgroup_test_paths.cached_dir("molecules", name)
+    gpw_path = molecule_dir / "wfs.gpw"
+    gpaw_txt = molecule_dir / "gpaw.txt"
     if not tmole_json.exists():
-        os.system(f"rm -r {name}")
-        with workdir(name):
+        with workdir(molecule_dir):
             write(name + ".xyz", atoms)
             os.system(f"x2t {name}.xyz > coord")
             Path("inp").write_text(turbomole_input)
@@ -439,12 +443,12 @@ def test_molecule(name, symmetry):
         tmole_states.save(tmole_json)
     tmole_states = SymmetryEigenvalues.load(tmole_json)
 
-    with workdir(name):
-        if not Path("wfs.gpw").exists():
+    with workdir(molecule_dir):
+        if not gpw_path.exists():
             calc = GPAW(
                 mode={"name": "pw", "ecut": 400, "force_complex_dtype": True},
                 xc="PBE",
-                txt="gpaw.txt",
+                txt=str(gpaw_txt),
             )
 
             # We don't support arbitrary centers (in our own symmetry
@@ -456,12 +460,12 @@ def test_molecule(name, symmetry):
             spg_ops = SPGOperations.from_atoms(atoms, layergroup=False)
             atoms.calc = calc
             atoms.get_potential_energy()
-            calc.write("wfs.gpw", mode="all")
+            calc.write(gpw_path, mode="all")
     tmole_states = tmole_states.unroll_degeneracies().occupied_states
     print(f"occupied TMOLE states {tmole_states=}")
 
-    with workdir(name):
-        calc = GPAW("wfs.gpw")
+    with workdir(molecule_dir):
+        calc = GPAW(gpw_path)
         gpaw_states = SymmetryEigenvalues.from_calc(calc, False, pani=True)
         assert gpaw_states.little_group.upper() == tmole_states.little_group.upper()
     print(f"{tmole_states}\n{gpaw_states}")

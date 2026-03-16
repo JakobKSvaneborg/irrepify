@@ -1,6 +1,4 @@
 import numpy as np
-from gpaw.rotation import rotation
-from gpaw.utilities import unpack_hermitian, unpack_density
 
 
 class PolynomialProjectable:
@@ -175,6 +173,8 @@ class PaniProjectable:
         inside the augmentation sphere.
         """
         s = 0.0
+        from gpaw.utilities import unpack_hermitian
+
         for a, P_i in self.P_ai.items():
             if a in other.P_ai:
                 # unpack or unpack2 N0_p.
@@ -210,6 +210,7 @@ class PaniProjectable:
         # Cache Wigner D-matrices for each l
         D_l = {}
         new_P_ai = {}
+        from gpaw.rotation import rotation
 
         for a in self.P_ai.keys():
             b = map_a[a]

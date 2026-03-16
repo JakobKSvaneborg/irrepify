@@ -1,14 +1,14 @@
 import pytest
 from ase.build import mx2
 import numpy as np
-from gpaw.utilities.pointgroup import PointGroup, SPGOperations
-from gpaw.utilities.pointgroup_proj import Projectable, PaniProjectable
-from gpaw.utilities.pointgroup_data import character_tables
+from symmetry.data import character_tables
+from symmetry.pointgroup import PointGroup, SPGOperations
+from symmetry.projectables import Projectable, PaniProjectable
 from gpaw.new.ase_interface import GPAW
 from pathlib import Path
 
 
-def test_Oh():
+def test_Oh(pointgroup_test_paths):
     from ase.build import bulk
     from ase.io import read
 
@@ -19,13 +19,14 @@ def test_Oh():
     spg_ops = SPGOperations.from_atoms(atoms, layergroup=False)
     assert spg_ops.pointgroup == "Oh"
 
-    if not Path("gs_Oh.gpw").exists():
+    gpw_path = pointgroup_test_paths.cached_path("test_pointgroup", "gs_Oh.gpw")
+    if not gpw_path.exists():
         calc = GPAW(mode={"name": "pw", "force_complex_dtype": True})
         atoms.calc = calc
         atoms.get_potential_energy()
-        calc.write("gs_Oh.gpw", mode="all")
+        calc.write(gpw_path, mode="all")
 
-    calc = GPAW("gs_Oh.gpw")
+    calc = GPAW(gpw_path)
     analyze_symmetry(calc, layergroup=False, expected="Oh")
 
 
@@ -62,7 +63,7 @@ def analyze_symmetry(calc, layergroup, expected):
         signatures.append(sig)
 
     # Group by eigenvalue degeneracy, then analyze per group
-    from gpaw.utilities.pointgroup_projections import group_eigenvalues
+    from symmetry.projections import group_eigenvalues
     results = []
     for group in group_eigenvalues(eig_n):
         combined_sig = sum(signatures[n] for n in group)
@@ -76,15 +77,15 @@ def analyze_symmetry(calc, layergroup, expected):
 
 
 @pytest.mark.parametrize("group", ["D3h", "C3v"])
-def test_defect_atoms(group):
+def test_defect_atoms(group, pointgroup_test_paths):
     atoms = create_mos2(pg_type=group, n_sc=2)
     spg_ops = SPGOperations.from_atoms(atoms, layergroup=True)
     assert spg_ops.pointgroup == group
 
     pg = PointGroup(spg_ops)
     from gpaw.new.ase_interface import GPAW
-    fname = f"MoS2_test_{group}.gpw"
-    if 1:
+    fname = pointgroup_test_paths.cached_path("test_pointgroup", f"MoS2_test_{group}.gpw")
+    if not fname.exists():
         calc = GPAW(
             mode={"name": "pw", "force_complex_dtype": True},
             xc="LDA",
@@ -339,13 +340,13 @@ def get_group_example(group):
 
 
 @pytest.mark.parametrize("group", character_tables.keys())
-def test_all(group):
+def test_all(group, pointgroup_test_paths):
     atoms, results = get_group_example(group)
 
     from gpaw.new.ase_interface import GPAW
 
-    fname = f"cache_{group}.gpw"
-    if not Path(fname).exists():
+    fname = pointgroup_test_paths.cached_path("test_pointgroup", f"cache_{group}.gpw")
+    if not fname.exists():
         calc = GPAW(
             mode={"name": "pw", "force_complex_dtype": True},
             xc="LDA",

@@ -1,14 +1,14 @@
 from ase.build import molecule
-from gpaw.utilities.pointgroup import (
+from symmetry.pointgroup import (
     PointGroup,
     SPGOperations,
     CharacterTable,
 )
-from gpaw.utilities.pointgroup_proj import (
+from symmetry.projectables import (
     PolynomialProjectable,
     LinearCombinationProjectable,
 )
-from gpaw.utilities.pointgroup_data import character_tables
+from symmetry.data import character_tables
 from ase import Atoms
 from ase.io import read
 import numpy as np
@@ -573,4 +573,3 @@ def test_Oh():
     assert get_span(pg, x) == ["T1u"]
     assert get_span(pg, y) == ["T1u"]
     assert get_span(pg, z) == ["T1u"]
-

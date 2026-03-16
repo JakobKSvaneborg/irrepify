@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 import numpy as np
-from gpaw.utilities.pointgroup_operation import OperationInfo, ppstr
-from gpaw.utilities.pointgroup_data import character_tables
 from ase import Atoms
+
+from .data import character_tables
+from .operations import OperationInfo, ppstr
 
 def debugprint(*args, **kwargs):
     pass
@@ -165,8 +166,6 @@ class SPGOperations:
 
     @property
     def character_table(self):
-        from gpaw.utilities.pointgroup_data import character_tables
-
         return CharacterTable.from_data(**character_tables[self.pointgroup])
 
     @classmethod
@@ -220,7 +219,7 @@ class SPGOperations:
         origin_shift_c = np.linalg.inv(dataset.transformation_matrix) @ dataset.origin_shift
         cell_cv = np.array(atoms.cell)
         # assert np.allclose(dataset.transformation_matrix, np.eye(3))
-        from gpaw.utilities.pointgroup_data import spglib_to_schoenflies
+        from .data import spglib_to_schoenflies
 
         # Deduplicate by rotation matrix: centering translations
         # (e.g. C-centered cells) produce duplicate rotation matrices

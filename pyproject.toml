@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "symmetry"
+version = "0.1.0"
+description = "Point-group symmetry utilities extracted from GPAW"
+requires-python = ">=3.10"
+dependencies = [
+    "ase",
+    "numpy",
+    "spglib",
+]
+
+[project.optional-dependencies]
+gpaw = ["gpaw"]
+test = ["pytest"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+cache_dir = ".pytest_cache"
+testpaths = ["tests"]

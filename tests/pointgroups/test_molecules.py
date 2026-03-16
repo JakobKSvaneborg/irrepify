@@ -4,9 +4,9 @@ import pytest
 from ase.io import write, read
 from ase.build import molecule
 from pathlib import Path
-from symmetry.pointgroup import PointGroup, SPGOperations
-from symmetry.projectables import Projectable
-from symmetry.projections import State, SymmetryEigenvalues
+from irrepify.pointgroup import PointGroup, SPGOperations
+from irrepify.projectables import Projectable
+from irrepify.projections import State, SymmetryEigenvalues
 from gpaw.new.ase_interface import GPAW
 from dataclasses import dataclass
 from numpy import pi, sin, cos

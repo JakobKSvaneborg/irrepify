@@ -1,14 +1,14 @@
 from ase.build import molecule
-from symmetry.pointgroup import (
+from irrepify.pointgroup import (
     PointGroup,
     SPGOperations,
     CharacterTable,
 )
-from symmetry.projectables import (
+from irrepify.projectables import (
     PolynomialProjectable,
     LinearCombinationProjectable,
 )
-from symmetry.data import character_tables
+from irrepify.data import character_tables
 from ase import Atoms
 from ase.io import read
 import numpy as np

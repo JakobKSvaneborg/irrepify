@@ -1,8 +1,8 @@
 from ase.build import molecule
 from gpaw.new.ase_interface import GPAW
-from symmetry.pointgroup import PointGroup, SPGOperations
-from symmetry.projectables import PaniProjectable
-from symmetry.projections import SymmetryEigenvalues
+from irrepify.pointgroup import PointGroup, SPGOperations
+from irrepify.projectables import PaniProjectable
+from irrepify.projections import SymmetryEigenvalues
 from pathlib import Path
 import numpy as np
 from numpy import pi, sin, cos

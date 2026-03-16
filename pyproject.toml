@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "symmetry"
+name = "irrepify"
 version = "0.1.0"
-description = "Point-group symmetry utilities extracted from GPAW"
+description = "Irreducible-representation and point-group utilities extracted from GPAW"
 requires-python = ">=3.10"
 dependencies = [
     "ase",

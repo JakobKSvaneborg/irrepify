@@ -1,9 +1,9 @@
 import pytest
 from ase.build import mx2
 import numpy as np
-from symmetry.data import character_tables
-from symmetry.pointgroup import PointGroup, SPGOperations
-from symmetry.projectables import Projectable, PaniProjectable
+from irrepify.data import character_tables
+from irrepify.pointgroup import PointGroup, SPGOperations
+from irrepify.projectables import Projectable, PaniProjectable
 from gpaw.new.ase_interface import GPAW
 from pathlib import Path
 
@@ -63,7 +63,7 @@ def analyze_symmetry(calc, layergroup, expected):
         signatures.append(sig)
 
     # Group by eigenvalue degeneracy, then analyze per group
-    from symmetry.projections import group_eigenvalues
+    from irrepify.projections import group_eigenvalues
     results = []
     for group in group_eigenvalues(eig_n):
         combined_sig = sum(signatures[n] for n in group)

@@ -1,22 +1,17 @@
 """Phase 1 tests for GSA-to-irrepify migration.
 
-Tests the new character tables, little group module, and validation module
+Tests the new character tables, LittleGroup, and validation module
 without requiring GPAW (pure group-theory and unit tests).
 """
 
 import numpy as np
 import pytest
-from ase import Atoms
 from ase.build import bulk
 
 from irrepify.data import character_tables, spglib_to_schoenflies
-from irrepify.pointgroup import CharacterTable, SPGOperations
-from irrepify.littlegroup import (
-    get_little_group,
-    get_little_group_factor,
-    find_kpoint_in_ibz,
-)
-from irrepify.validation import representation_matrix
+from irrepify.pointgroup import SPGOperations
+from irrepify.littlegroup import LittleGroup, find_kpoint_in_ibz
+from irrepify.validation import representation_matrix, check_operation
 from irrepify.projectables import PolynomialProjectable
 
 
@@ -36,7 +31,6 @@ class TestCharacterTables:
             )
 
     def test_character_table_count(self):
-        """We should have at least 32 character tables."""
         assert len(character_tables) >= 32
 
     @pytest.mark.parametrize("name", list(character_tables.keys()))
@@ -56,11 +50,10 @@ class TestCharacterTables:
 
     @pytest.mark.parametrize("name", list(character_tables.keys()))
     def test_identity_column(self, name):
-        """The identity class (E) should be first, with chi(E) = dim."""
+        """chi(E) should be real and positive (the irrep dimension)."""
         data = character_tables[name]
-        assert data["classes"][0] == "E", f"{name}: first class should be E"
+        assert data["classes"][0] == "E"
         table = np.array(data["table"])
-        # chi(E) should be real and positive (the irrep dimension)
         for i, irrep in enumerate(data["irreps"]):
             dim = table[i, 0]
             assert np.isclose(dim.imag, 0), (
@@ -70,43 +63,35 @@ class TestCharacterTables:
 
     @pytest.mark.parametrize("name", list(character_tables.keys()))
     def test_orthogonality_rows(self, name):
-        """Row orthogonality: sum_g |C_g| chi_i(g)* chi_j(g) = |G| delta_ij.
-
-        This is the Grand Orthogonality Theorem for characters.
-        We extract class sizes from the class name prefix (e.g., '2C3' → 2).
-        """
+        """Row orthogonality (GOT): sum_g |C_g| chi_i(g)* chi_j(g) = |G| delta_ij."""
         data = character_tables[name]
-        table = np.array(data["table"], dtype=complex)
+        table_ig = np.array(data["table"], dtype=complex)
         classes = data["classes"]
 
-        # Parse class sizes from names
-        sizes = []
+        # Parse class sizes from names: "2C3" -> 2, "E" -> 1, "i" -> 1
+        sizes_g = []
         for cls in classes:
             if cls in ("E", "i"):
-                sizes.append(1)
+                sizes_g.append(1)
             else:
-                # Extract leading number, e.g., "2C3" → 2, "1C2" → 1
                 digits = ""
                 for ch in cls:
                     if ch.isdigit():
                         digits += ch
                     else:
                         break
-                sizes.append(int(digits) if digits else 1)
-        sizes = np.array(sizes)
+                sizes_g.append(int(digits) if digits else 1)
+        sizes_g = np.array(sizes_g)
+        order = np.sum(sizes_g)
 
-        # Group order
-        order = np.sum(sizes)
-
-        # Check orthogonality
-        n_irreps = table.shape[0]
+        n_irreps = table_ig.shape[0]
         for i in range(n_irreps):
             for j in range(n_irreps):
-                inner = np.sum(sizes * np.conj(table[i]) * table[j])
+                inner = np.sum(sizes_g * np.conj(table_ig[i]) * table_ig[j])
                 expected = order if i == j else 0
                 assert np.isclose(inner, expected, atol=1e-10), (
-                    f"{name}: row orthogonality failed for "
-                    f"irreps ({data['irreps'][i]}, {data['irreps'][j]}): "
+                    f"{name}: GOT failed for "
+                    f"({data['irreps'][i]}, {data['irreps'][j]}): "
                     f"got {inner}, expected {expected}"
                 )
 
@@ -114,102 +99,80 @@ class TestCharacterTables:
 class TestNewCharacterTables:
     """Specifically test the 4 newly added character tables."""
 
-    def test_D6_structure(self):
-        data = character_tables["D6"]
-        assert len(data["irreps"]) == 6
-        assert len(data["classes"]) == 6
-        # Order should be 12
-        table = np.array(data["table"])
-        dims = table[:, 0].real
-        assert np.isclose(np.sum(dims**2), 12)
-
-    def test_T_structure(self):
-        data = character_tables["T"]
-        assert len(data["irreps"]) == 4  # A, E(1), E(2), T
-        assert len(data["classes"]) == 4
-        # Order should be 12
-        table = np.array(data["table"])
-        dims = table[:, 0].real
-        assert np.isclose(np.sum(dims**2), 12)
-
-    def test_Th_structure(self):
-        data = character_tables["Th"]
-        assert len(data["irreps"]) == 8
-        assert len(data["classes"]) == 8
-        # Order should be 24
-        table = np.array(data["table"])
-        dims = table[:, 0].real
-        assert np.isclose(np.sum(dims**2), 24)
-
-    def test_O_structure(self):
-        data = character_tables["O"]
-        assert len(data["irreps"]) == 5
-        assert len(data["classes"]) == 5
-        # Order should be 24
-        table = np.array(data["table"])
-        dims = table[:, 0].real
-        assert np.isclose(np.sum(dims**2), 24)
+    @pytest.mark.parametrize("name,n_irreps,order", [
+        ("D6", 6, 12),
+        ("T", 4, 12),
+        ("Th", 8, 24),
+        ("O", 5, 24),
+    ])
+    def test_structure_and_order(self, name, n_irreps, order):
+        data = character_tables[name]
+        assert len(data["irreps"]) == n_irreps
+        assert len(data["classes"]) == len(data["irreps"])
+        table_ig = np.array(data["table"])
+        dims_i = table_ig[:, 0].real
+        assert np.isclose(np.sum(dims_i**2), order)
 
 
 # =============================================================================
-# Little group tests
+# LittleGroup tests
 # =============================================================================
 
 class TestLittleGroup:
-    """Test little group filtering."""
 
     @pytest.fixture
     def si_spg_ops(self):
         """Silicon primitive cell SPGOperations."""
-        atoms = bulk("Si")
-        return SPGOperations.from_atoms(atoms, layergroup=False)
+        return SPGOperations.from_atoms(bulk("Si"), layergroup=False)
 
-    def test_gamma_point_is_full_group(self, si_spg_ops):
-        """At Gamma, the little group equals the full point group."""
-        little = get_little_group(si_spg_ops, [0, 0, 0])
-        assert len(little.W_scc) == len(si_spg_ops.W_scc)
+    def test_gamma_is_full_group(self, si_spg_ops):
+        """At Gamma, the little group equals the full group."""
+        lg = LittleGroup.from_spg_ops(si_spg_ops, kpt_c=[0, 0, 0])
+        assert lg.n_ops == len(si_spg_ops.W_scc)
 
-    def test_general_k_reduces_group(self, si_spg_ops):
+    def test_general_k_reduces(self, si_spg_ops):
         """A general k-point should have fewer operations."""
-        little = get_little_group(si_spg_ops, [0.123, 0.234, 0.345])
-        assert len(little.W_scc) < len(si_spg_ops.W_scc)
-        # At minimum, identity should remain
-        assert len(little.W_scc) >= 1
+        lg = LittleGroup.from_spg_ops(si_spg_ops, kpt_c=[0.123, 0.234, 0.345])
+        assert lg.n_ops < len(si_spg_ops.W_scc)
+        assert lg.n_ops >= 1
 
     def test_identity_always_present(self, si_spg_ops):
-        """Identity should be in the little group for any k-point."""
-        for k in [[0, 0, 0], [0.5, 0, 0], [0.1, 0.2, 0.3]]:
-            little = get_little_group(si_spg_ops, k)
-            eye = np.eye(3, dtype=int)
+        """Identity should be in G_k for any k-point."""
+        eye_cc = np.eye(3, dtype=int)
+        for kpt_c in [[0, 0, 0], [0.5, 0, 0], [0.1, 0.2, 0.3]]:
+            lg = LittleGroup.from_spg_ops(si_spg_ops, kpt_c=kpt_c)
             has_identity = any(
-                np.array_equal(np.round(W).astype(int), eye)
-                for W in little.W_scc
+                np.array_equal(np.round(W_cc).astype(int), eye_cc)
+                for W_cc in lg.spg_ops.W_scc
             )
-            assert has_identity, f"Identity missing for k={k}"
+            assert has_identity, f"Identity missing for k={kpt_c}"
 
     def test_high_symmetry_point(self, si_spg_ops):
-        """X point (0.5, 0, 0.5) in diamond should have a non-trivial group."""
-        little = get_little_group(si_spg_ops, [0.5, 0, 0.5])
-        # Should have more than just identity
-        assert len(little.W_scc) > 1
+        """X point in diamond should have a non-trivial little group."""
+        lg = LittleGroup.from_spg_ops(si_spg_ops, kpt_c=[0.5, 0, 0.5])
+        assert lg.n_ops > 1
 
     def test_factor_group_at_gamma(self, si_spg_ops):
-        """Factor group at Gamma should equal the little group (no supercell)."""
-        factor = get_little_group_factor(si_spg_ops, [0, 0, 0])
-        little = get_little_group(si_spg_ops, [0, 0, 0])
-        assert len(factor.W_scc) == len(little.W_scc)
+        """Factor group at Gamma equals the little group (no supercell)."""
+        lg = LittleGroup.from_spg_ops(si_spg_ops, kpt_c=[0, 0, 0])
+        fg = lg.factor_group()
+        assert fg.n_ops == lg.n_ops
+
+    def test_kpt_c_stored(self, si_spg_ops):
+        kpt_c = [0.25, 0.0, 0.25]
+        lg = LittleGroup.from_spg_ops(si_spg_ops, kpt_c=kpt_c)
+        np.testing.assert_allclose(lg.kpt_c, kpt_c)
 
 
 class TestFindKpointInIBZ:
-    """Test k-point lookup in IBZ."""
 
     def test_direct_match(self):
-        ibz = np.array([[0, 0, 0], [0.5, 0, 0], [0.5, 0.5, 0]])
-        assert find_kpoint_in_ibz(ibz, [0.5, 0, 0]) == 1
+        kpts_kc = np.array([[0, 0, 0], [0.5, 0, 0], [0.5, 0.5, 0]])
+        assert find_kpoint_in_ibz(kpts_kc, kpt_c=[0.5, 0, 0]) == 1
 
     def test_no_match(self):
-        ibz = np.array([[0, 0, 0], [0.5, 0, 0]])
-        assert find_kpoint_in_ibz(ibz, [0.3, 0.3, 0.3]) == -1
+        kpts_kc = np.array([[0, 0, 0], [0.5, 0, 0]])
+        assert find_kpoint_in_ibz(kpts_kc, kpt_c=[0.3, 0.3, 0.3]) == -1
 
 
 # =============================================================================
@@ -217,64 +180,52 @@ class TestFindKpointInIBZ:
 # =============================================================================
 
 class TestValidation:
-    """Test the validation module using polynomial projectables.
+    """Test the validation module using polynomial projectables."""
 
-    PolynomialProjectable lets us test the validation machinery without
-    GPAW, by checking how coordinate axes transform under known point
-    group operations.
-    """
+    @pytest.fixture
+    def xyz_projectables(self):
+        """Orthonormal (x, y, z) basis in a cubic cell."""
+        cell_cv = np.eye(3) * 5.0
+        px = PolynomialProjectable(cell_cv, weights_v=np.array([1, 0, 0]))
+        py = PolynomialProjectable(cell_cv, weights_v=np.array([0, 1, 0]))
+        pz = PolynomialProjectable(cell_cv, weights_v=np.array([0, 0, 1]))
+        return [px, py, pz]
 
-    def test_representation_matrix_identity(self):
-        """Identity operation should give D = I."""
-        cell = np.eye(3) * 5.0
-        px = PolynomialProjectable(cell, weights_v=np.array([1, 0, 0]))
-        py = PolynomialProjectable(cell, weights_v=np.array([0, 1, 0]))
-        pz = PolynomialProjectable(cell, weights_v=np.array([0, 0, 1]))
-
-        D = representation_matrix(
-            [px, py, pz],
-            op_cc=np.eye(3, dtype=int),
+    def test_identity_gives_unit_matrix(self, xyz_projectables):
+        D_nn = representation_matrix(
+            xyz_projectables,
+            W_cc=np.eye(3, dtype=int),
             w_c=np.zeros(3),
         )
-        np.testing.assert_allclose(D, np.eye(3), atol=1e-12)
+        np.testing.assert_allclose(D_nn, np.eye(3), atol=1e-12)
 
-    def test_representation_matrix_inversion(self):
-        """Inversion should give D = -I for (x, y, z) basis."""
-        cell = np.eye(3) * 5.0
-        px = PolynomialProjectable(cell, weights_v=np.array([1, 0, 0]))
-        py = PolynomialProjectable(cell, weights_v=np.array([0, 1, 0]))
-        pz = PolynomialProjectable(cell, weights_v=np.array([0, 0, 1]))
-
-        D = representation_matrix(
-            [px, py, pz],
-            op_cc=-np.eye(3, dtype=int),
+    def test_inversion_gives_minus_identity(self, xyz_projectables):
+        D_nn = representation_matrix(
+            xyz_projectables,
+            W_cc=-np.eye(3, dtype=int),
             w_c=np.zeros(3),
         )
-        np.testing.assert_allclose(D, -np.eye(3), atol=1e-12)
+        np.testing.assert_allclose(D_nn, -np.eye(3), atol=1e-12)
 
-    def test_representation_matrix_c4z(self):
-        """C4 rotation about z: x→y, y→-x, z→z."""
-        cell = np.eye(3) * 5.0
-        px = PolynomialProjectable(cell, weights_v=np.array([1, 0, 0]))
-        py = PolynomialProjectable(cell, weights_v=np.array([0, 1, 0]))
-        pz = PolynomialProjectable(cell, weights_v=np.array([0, 0, 1]))
-
-        # C4 about z in Cartesian: [[0,-1,0],[1,0,0],[0,0,1]]
-        # In fractional with cubic cell: same matrix
-        C4z = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
-
-        D = representation_matrix(
-            [px, py, pz],
-            op_cc=C4z,
-            w_c=np.zeros(3),
+    def test_c4z_representation(self, xyz_projectables):
+        """C4 about z: pushing-forward convention gives D = R itself."""
+        C4z_cc = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+        D_nn = representation_matrix(
+            xyz_projectables, W_cc=C4z_cc, w_c=np.zeros(3),
         )
-        # D_mn = <psi_m | R | psi_n>
-        # R maps x→-y, y→x (pushing forward: (Rf)(r) = f(R^{-1}r))
-        # So R|x> has overlap with y: <y|R|x> = 1, <x|R|x> = 0
-        # and R|y> has overlap with x: <x|R|y> = -1
-        expected = np.array([
+        # (Rf)(r) = f(R^{-1}r): D_mn = <m|R|n> = R_mn in Cartesian
+        expected_nn = np.array([
             [0, -1, 0],
             [1, 0, 0],
             [0, 0, 1],
         ], dtype=float)
-        np.testing.assert_allclose(D, expected, atol=1e-12)
+        np.testing.assert_allclose(D_nn, expected_nn, atol=1e-12)
+
+    def test_check_operation_identity(self, xyz_projectables):
+        result = check_operation(
+            xyz_projectables,
+            W_cc=np.eye(3, dtype=int),
+            w_c=np.zeros(3),
+        )
+        assert result.is_valid(tol=1e-10)
+        assert result.max_error < 1e-12

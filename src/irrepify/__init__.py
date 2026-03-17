@@ -8,9 +8,11 @@ from .projectables import (
     Projectable,
 )
 from .projections import State, SymmetryEigenvalues, group_eigenvalues
-from .littlegroup import get_little_group, get_little_group_factor, find_kpoint_in_ibz
+from .littlegroup import LittleGroup, find_kpoint_in_ibz
 from .validation import (
-    check_symmetry_precision,
+    OperationResult,
+    ValidationResult,
+    check_operation,
     representation_matrix,
     validate_little_group,
 )
@@ -18,8 +20,10 @@ from .validation import (
 __all__ = [
     "CharacterTable",
     "ConjugacyClassClassifierClass",
+    "LittleGroup",
     "LinearCombinationProjectable",
     "OperationInfo",
+    "OperationResult",
     "PaniProjectable",
     "PointGroup",
     "PolynomialProjectable",
@@ -27,11 +31,10 @@ __all__ = [
     "SPGOperations",
     "State",
     "SymmetryEigenvalues",
+    "ValidationResult",
     "character_tables",
-    "check_symmetry_precision",
+    "check_operation",
     "find_kpoint_in_ibz",
-    "get_little_group",
-    "get_little_group_factor",
     "group_eigenvalues",
     "ppstr",
     "representation_matrix",

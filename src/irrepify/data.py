@@ -328,6 +328,50 @@ Oh = {
               [3., 0., 1., -1., -1., -3., 1., 0., 1., -1.]]
 }
 
+D6 = {
+    "irreps": ["A1", "A2", "B1", "B2", "E1", "E2"],
+    "classes": ["E", "2C6", "2C3", "1C2", "3C2'", "3C2''"],
+    'table': [[1., 1., 1., 1., 1., 1.],
+              [1., 1., 1., 1., -1., -1.],
+              [1., -1., 1., -1., 1., -1.],
+              [1., -1., 1., -1., -1., 1.],
+              [2., 1., -1., -2., 0., 0.],
+              [2., -1., -1., 2., 0., 0.]]
+}
+
+T = {
+    "irreps": ["A", "E(1)", "E(2)", "T"],
+    "classes": ["E", "4C3", "4C3^2", "3C2"],
+    'table': [[1., 1., 1., 1.],
+              [1., eps, epsc, 1.],
+              [1., epsc, eps, 1.],
+              [3., 0., 0., -1.]]
+}
+
+Th = {
+    "irreps": ["Ag", "Eg(1)", "Eg(2)", "Tg",
+               "Au", "Eu(1)", "Eu(2)", "Tu"],
+    "classes": ["E", "4C3", "4C3^2", "3C2",
+                "i", "4S6", "4S6^5", "3sh"],
+    'table': [[1., 1., 1., 1., 1., 1., 1., 1.],
+              [1., eps, epsc, 1., 1., eps, epsc, 1.],
+              [1., epsc, eps, 1., 1., epsc, eps, 1.],
+              [3., 0., 0., -1., 3., 0., 0., -1.],
+              [1., 1., 1., 1., -1., -1., -1., -1.],
+              [1., eps, epsc, 1., -1., -eps, -epsc, -1.],
+              [1., epsc, eps, 1., -1., -epsc, -eps, -1.],
+              [3., 0., 0., -1., -3., 0., 0., 1.]]
+}
+
+O = {
+    "irreps": ["A1", "A2", "E", "T1", "T2"],
+    "classes": ["E", "8C3", "3C2", "6C4", "6C2'"],
+    'table': [[1., 1., 1., 1., 1.],
+              [1., 1., 1., -1., -1.],
+              [2., -1., 2., 0., 0.],
+              [3., 0., -1., 1., -1.],
+              [3., 0., -1., -1., 1.]]
+}
 
 # TODO: Add which are tested as molecules
 character_tables = {'C1': C1,    # cc tested, molecule PASS
@@ -358,6 +402,10 @@ character_tables = {'C1': C1,    # cc tested, molecule PASS
                     'D6h': D6h,  # cc tested, molecule PASS
                     'Td': Td,    # cc tested, molecule PASS
                     'Oh': Oh,    # cc tested, molecule PASS (make better test)
+                    'D6': D6,
+                    'T': T,
+                    'Th': Th,
+                    'O': O,
                     }
 
 spglib_to_schoenflies = {

@@ -8,10 +8,13 @@ from .projectables import (
     Projectable,
 )
 from .projections import State, SymmetryEigenvalues, group_eigenvalues
+from .littlegroup import LittleGroup, find_kpoint_in_ibz
+from .validation import check_operation, representation_matrix, validate_little_group
 
 __all__ = [
     "CharacterTable",
     "ConjugacyClassClassifierClass",
+    "LittleGroup",
     "LinearCombinationProjectable",
     "OperationInfo",
     "PaniProjectable",
@@ -22,7 +25,11 @@ __all__ = [
     "State",
     "SymmetryEigenvalues",
     "character_tables",
+    "check_operation",
+    "find_kpoint_in_ibz",
     "group_eigenvalues",
     "ppstr",
+    "representation_matrix",
     "spglib_to_schoenflies",
+    "validate_little_group",
 ]

@@ -9,13 +9,7 @@ from .projectables import (
 )
 from .projections import State, SymmetryEigenvalues, group_eigenvalues
 from .littlegroup import LittleGroup, find_kpoint_in_ibz
-from .validation import (
-    OperationResult,
-    ValidationResult,
-    check_operation,
-    representation_matrix,
-    validate_little_group,
-)
+from .validation import check_operation, representation_matrix, validate_little_group
 
 __all__ = [
     "CharacterTable",
@@ -23,7 +17,6 @@ __all__ = [
     "LittleGroup",
     "LinearCombinationProjectable",
     "OperationInfo",
-    "OperationResult",
     "PaniProjectable",
     "PointGroup",
     "PolynomialProjectable",
@@ -31,7 +24,6 @@ __all__ = [
     "SPGOperations",
     "State",
     "SymmetryEigenvalues",
-    "ValidationResult",
     "character_tables",
     "check_operation",
     "find_kpoint_in_ibz",

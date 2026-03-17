@@ -222,10 +222,10 @@ class TestValidation:
         np.testing.assert_allclose(D_nn, expected_nn, atol=1e-12)
 
     def test_check_operation_identity(self, xyz_projectables):
-        result = check_operation(
+        D_nn, error_n = check_operation(
             xyz_projectables,
             W_cc=np.eye(3, dtype=int),
             w_c=np.zeros(3),
         )
-        assert result.is_valid(tol=1e-10)
-        assert result.max_error < 1e-12
+        assert np.all(error_n < 1e-10)
+        np.testing.assert_allclose(D_nn, np.eye(3), atol=1e-12)

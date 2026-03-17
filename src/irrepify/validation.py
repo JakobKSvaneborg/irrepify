@@ -5,65 +5,10 @@ by comparing the direct transformation R|psi> against the projected
 reconstruction D(R)|psi>.  If the wavefunction truly spans a representation
 of the little group, both methods agree to machine precision.
 
-Works with any :class:`Projectable` subclass (plane-wave, PAW, polynomial).
+Works with any Projectable subclass (plane-wave, PAW, polynomial).
 """
 
-from dataclasses import dataclass
-
 import numpy as np
-
-
-@dataclass
-class OperationResult:
-    """Validation result for a single symmetry operation.
-
-    Attributes
-    ----------
-    D_nn : np.array
-        Representation matrix D(R), shape (nbands, nbands).
-    error_n : np.array
-        Per-band relative errors, shape (nbands,).
-    """
-
-    D_nn: np.array
-    error_n: np.array
-
-    @property
-    def max_error(self):
-        return float(np.max(self.error_n))
-
-    def is_valid(self, tol=1e-6):
-        return self.max_error < tol
-
-
-@dataclass
-class ValidationResult:
-    """Validation result for an entire little group.
-
-    Attributes
-    ----------
-    results_s : list[OperationResult]
-        Per-operation results, indexed by operation.
-    """
-
-    results_s: list[OperationResult]
-
-    @property
-    def D_snn(self):
-        """Representation matrices, shape (nsym, nbands, nbands)."""
-        return np.array([r.D_nn for r in self.results_s])
-
-    @property
-    def worst_error(self):
-        return max(r.max_error for r in self.results_s)
-
-    def is_valid(self, tol=1e-6):
-        return all(r.is_valid(tol) for r in self.results_s)
-
-    def __repr__(self):
-        n_ops = len(self.results_s)
-        return (f"ValidationResult({n_ops} ops, "
-                f"worst_error={self.worst_error:.2e})")
 
 
 def representation_matrix(projectables_n, W_cc, w_c):
@@ -107,7 +52,8 @@ def representation_matrix(projectables_n, W_cc, w_c):
 def check_operation(projectables_n, W_cc, w_c):
     """Validate a single symmetry operation on a degenerate subspace.
 
-    Compares <psi_m | R | psi_k> (direct) against (S D)_mk (projected).
+    Compares <psi_m | R | psi_k> (direct) against (S D)_mk (projected)
+    and returns the per-band relative error.
 
     Parameters
     ----------
@@ -120,7 +66,10 @@ def check_operation(projectables_n, W_cc, w_c):
 
     Returns
     -------
-    OperationResult
+    D_nn : ndarray, shape (n, n)
+        Representation matrix.
+    error_n : ndarray, shape (n,)
+        Per-band relative error.
     """
     n = len(projectables_n)
     D_nn = representation_matrix(projectables_n, W_cc, w_c)
@@ -143,7 +92,7 @@ def check_operation(projectables_n, W_cc, w_c):
         norm = np.linalg.norm(direct_m)
         error_n[k] = np.linalg.norm(diff_m) / norm if norm > 0 else 0.0
 
-    return OperationResult(D_nn=D_nn, error_n=error_n)
+    return D_nn, error_n
 
 
 def validate_little_group(projectables_n, spg_ops, tol=1e-6, verbose=False):
@@ -162,22 +111,31 @@ def validate_little_group(projectables_n, spg_ops, tol=1e-6, verbose=False):
 
     Returns
     -------
-    ValidationResult
+    D_snn : ndarray, shape (nsym, n, n)
+        Representation matrices for each operation.
+    error_sn : ndarray, shape (nsym, n)
+        Per-band relative errors for each operation.
     """
-    results_s = []
+    D_list = []
+    error_list = []
+
     for s, (W_cc, w_c) in enumerate(zip(spg_ops.W_scc, spg_ops.w_sc)):
-        result = check_operation(projectables_n, W_cc, w_c)
-        results_s.append(result)
+        D_nn, error_n = check_operation(projectables_n, W_cc, w_c)
+        D_list.append(D_nn)
+        error_list.append(error_n)
 
         if verbose:
-            status = "PASS" if result.is_valid(tol) else "FAIL"
-            print(f"  Op {s}: max_error={result.max_error:.2e} [{status}]")
+            max_err = np.max(error_n)
+            status = "PASS" if max_err < tol else "FAIL"
+            print(f"  Op {s}: max_error={max_err:.2e} [{status}]")
 
-    validation = ValidationResult(results_s=results_s)
+    D_snn = np.array(D_list)
+    error_sn = np.array(error_list)
 
     if verbose:
-        n_valid = sum(r.is_valid(tol) for r in results_s)
-        print(f"\n  {n_valid}/{len(results_s)} operations passed "
-              f"(worst: {validation.worst_error:.2e})")
+        n_valid = np.sum(np.max(error_sn, axis=1) < tol)
+        worst = np.max(error_sn)
+        print(f"\n  {n_valid}/{len(D_list)} operations passed "
+              f"(worst: {worst:.2e})")
 
-    return validation
+    return D_snn, error_sn

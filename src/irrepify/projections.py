@@ -12,6 +12,8 @@ def group_eigenvalues(eig_n, tol=1e-4):
 
     Returns list of lists of band indices, e.g. [[0], [1, 2], [3], ...]
     """
+    if len(eig_n) == 0:
+        return []
     groups = []
     current = [0]
     for n in range(1, len(eig_n)):
@@ -38,11 +40,11 @@ class State:
         self, irrep=None, eigenvalue=None, occupation=None, degeneracy=None, weight=None
     ):
         return State(
-            irrep or self.irrep,
-            eigenvalue or self.eigenvalue,
-            occupation or self.occupation,
-            degeneracy or self.degeneracy,
-            weight or self.weight,
+            self.irrep if irrep is None else irrep,
+            self.eigenvalue if eigenvalue is None else eigenvalue,
+            self.occupation if occupation is None else occupation,
+            self.degeneracy if degeneracy is None else degeneracy,
+            self.weight if weight is None else weight,
         )
 
     def as_dict(self):
@@ -140,7 +142,7 @@ class SymmetryEigenvalues:
                 state.eigenvalue -= value
             return self
         else:
-            raise TypeError("Cannot subtract {value}")
+            raise TypeError(f"Cannot subtract {value}")
 
     def unroll_degeneracies(self):
         states = []

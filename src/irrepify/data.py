@@ -87,7 +87,6 @@ D2 = {
               [1., -1., -1., 1.]]
 }
 
-print('Remember to double check D2h character table')
 D2h = {
     "irreps": ["Ag", "B1g", "B2g", "B3g",
                "Au", "B1u", "B2u", "B3u"],

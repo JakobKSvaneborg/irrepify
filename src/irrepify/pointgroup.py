@@ -143,7 +143,6 @@ class SPGOperations:
 
     def __post_init__(self):
         if not self.allow_translations:
-            print(f'Before {self}')
             operations_now = len(self.w_sc)
             new_W_scc, new_w_sc = [], []
             for W_cc, w_c in zip(self.W_scc, self.w_sc):
@@ -291,9 +290,10 @@ class SPGOperations:
 
     @property
     def O_svv(self):
+        cell_inv_T = np.linalg.inv(self.cell_cv).T
         return np.array(
             [
-                self.cell_cv.T @ W_cc @ np.linalg.inv(self.cell_cv).T
+                self.cell_cv.T @ W_cc @ cell_inv_T
                 for W_cc in self.W_scc
             ]
         )
@@ -305,7 +305,7 @@ class SPGOperations:
         return s
 
 
-class SymmmetryOperations:
+class SymmetryOperations:
     def __init__(self, ops_occ):
         self.ops_occ = ops_occ
         self.inv_oo = None
@@ -337,7 +337,7 @@ class SymmmetryOperations:
 class ConjugacyClassClassifierClass:
     def __init__(
         self,
-        operations: SymmmetryOperations,
+        operations: SymmetryOperations,
         expected_classes: list[str],
         verbose=True,
         atoms=None,
@@ -357,7 +357,6 @@ class ConjugacyClassClassifierClass:
         while True:
             iterations += 1
             if iterations >= 1_000:
-                breakpoint()
                 raise RuntimeError('Unexpected infinite loop')
             # Loop until all operations are assigned a class
             if len(op_pool) == 0:
@@ -381,7 +380,7 @@ class ConjugacyClassClassifierClass:
             op_pool = list(set(op_pool) - set(conjugacy_class))
 
         if verbose:
-            print("Found %d conjugacy classes" % len(self.ops_g))
+            debugprint("Found %d conjugacy classes" % len(self.ops_g))
 
     def _detect_main_conjugacy_class(self, operation_info_o):
         """Detect the main conjugacy class
@@ -457,8 +456,10 @@ class ConjugacyClassClassifierClass:
             return ["_xz", "_yz"]
             # return ["_xz", "_yz"] XXX This one works for C3H4
         else:
-            print(self.principal_axis, axes)
-            raise ValueError("Could not determine coordinate system.")
+            raise ValueError(
+                f"Could not determine coordinate system. "
+                f"principal_axis={self.principal_axis}, axes={axes}"
+            )
 
     def _resolve_1C2(self, count, operations):
         if count == 3:
@@ -709,10 +710,9 @@ class ConjugacyClassClassifierClass:
 class PointGroup:
     def __init__(self, spg_ops):
         self.spg_ops = spg_ops
-        print("POINTGROUP", spg_ops.pointgroup)
         self.verbose = True
 
-        self.operations = SymmmetryOperations(self.ops_occ)
+        self.operations = SymmetryOperations(self.ops_occ)
         character_table = self.spg_ops.character_table
 
         self.c4 = ConjugacyClassClassifierClass(
@@ -724,20 +724,15 @@ class PointGroup:
         assert self.detected_pointgroup == self.spg_ops.pointgroup
 
         if set(character_table.classes) != set(self.c4.names_g):
-            print("Character tables classes", character_table.classes)
-            print("Our names_g", self.c4.names_g)
-            print(
-                "Not in our names_g",
-                set(character_table.classes) - set(self.c4.names_g),
+            missing = set(character_table.classes) - set(self.c4.names_g)
+            extra = set(self.c4.names_g) - set(character_table.classes)
+            raise ValueError(
+                f"Cannot detect all of the conjugacy classes. "
+                f"Expected: {character_table.classes}, got: {self.c4.names_g}. "
+                f"Missing: {missing}, extra: {extra}"
             )
-            print(
-                "Not in our character_table",
-                set(self.names_g) - set(character_table.classes),
-            )
-            raise ValueError("Cannot detect all of the conjugacy classes.")
 
         character_table = character_table.in_conjugacy_order(self.c4.names_g)
-        character_table.print()
         self.character_table = character_table
 
     @property
@@ -745,7 +740,6 @@ class PointGroup:
         names_g = set(self.c4.names_g)
         for name, table_data in character_tables.items():
             if set(table_data["classes"]) == names_g:
-                print(f'Detected point group {name} from irreps {names_g}')
                 return name
         else:
             raise ValueError(f'Cannot detect point group for conjugacy classes {names_g}')

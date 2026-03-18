@@ -1,6 +1,6 @@
 from .data import character_tables, spglib_to_schoenflies
 from .operations import OperationInfo, ppstr
-from .pointgroup import CharacterTable, ConjugacyClassClassifierClass, PointGroup, SPGOperations
+from .pointgroup import CharacterTable, ConjugacyClassClassifierClass, PointGroup, SPGOperations, SymmetryOperations
 from .projectables import (
     LinearCombinationProjectable,
     PaniProjectable,
